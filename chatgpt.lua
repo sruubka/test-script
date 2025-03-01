@@ -61,7 +61,7 @@ Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 
 -- Fly + Noclip handler
-local flySpeed = 2
+local flySpeed = 85
 
 local function setNoclip(enabled)
     noclipEnabled = enabled
