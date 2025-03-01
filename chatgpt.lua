@@ -1,67 +1,60 @@
--- Skrypt w LocalScript
+-- GUI
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
 
--- Zmienna do gracza i GUI
-local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- Tworzenie GUI
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Enabled = false  -- domyślnie ukryte
 
--- Tworzymy GUI, które będzie widoczne po naciśnięciu Insert
-local gui = Instance.new("ScreenGui")
-gui.Name = "AimAssistGui"
-gui.Parent = playerGui
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 300, 0, 400)
+Frame.Position = UDim2.new(0.5, -150, 0.5, -200)
+Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0.3, 0, 0.3, 0) -- Rozmiar okna
-frame.Position = UDim2.new(0.35, 0, 0.35, 0) -- Pozycja okna na ekranie
-frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-frame.BackgroundTransparency = 0.5
-frame.Parent = gui
+local UIListLayout = Instance.new("UIListLayout", Frame)
+UIListLayout.Padding = UDim.new(0, 5)
 
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(1, 0, 1, 0)
-label.Text = "Aim Assist: Off"
-label.TextColor3 = Color3.fromRGB(255, 255, 255)
-label.BackgroundTransparency = 1
-label.Parent = frame
+-- Funkcja do aktualizacji listy graczy
+local function UpdatePlayerList()
+    for _, child in pairs(Frame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
 
--- Stan aktywacji aim assist
-local aimAssistEnabled = false
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local PlayerButton = Instance.new("TextButton", Frame)
+            PlayerButton.Size = UDim2.new(1, 0, 0, 30)
+            PlayerButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            PlayerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            PlayerButton.Text = player.Name
 
--- Funkcja do aktywowania lub dezaktywowania GUI
-local function toggleAimAssist()
-    aimAssistEnabled = not aimAssistEnabled
-    gui.Enabled = aimAssistEnabled
-    label.Text = aimAssistEnabled and "Aim Assist: On" or "Aim Assist: Off"
-end
-
--- Funkcja nakierowująca kamerę na głowy przeciwników
-local function aimAtEnemies()
-    -- Szukamy przeciwników w grze (graczy innych niż nasz)
-    for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Head") then
-            local headPosition = otherPlayer.Character.Head.Position
-            -- Sprawdzamy, czy gracz znajduje się w zasięgu
-            local direction = (headPosition - workspace.CurrentCamera.CFrame.Position).unit
-            -- Tworzymy nową CFrame dla kamery, aby patrzyła na głowę przeciwnika
-            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, headPosition)
-            break  -- Tylko pierwszy przeciwnik zostanie wybrany
+            PlayerButton.MouseButton1Click:Connect(function()
+                local char = player.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame
+                end
+            end)
         end
     end
 end
 
--- Nasłuchujemy na naciśnięcie klawisza Insert
-local userInputService = game:GetService("UserInputService")
-userInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+-- Aktualizacja przy join/leave gracza
+Players.PlayerAdded:Connect(UpdatePlayerList)
+Players.PlayerRemoving:Connect(UpdatePlayerList)
 
-    -- Sprawdzamy, czy naciśnięto klawisz Insert
-    if input.KeyCode == Enum.KeyCode.Insert then
-        toggleAimAssist()
+-- Klawisz Insert do pokazania GUI
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Insert and not gameProcessed then
+        ScreenGui.Enabled = not ScreenGui.Enabled
+        UIS.MouseBehavior = ScreenGui.Enabled and Enum.MouseBehavior.Default or Enum.MouseBehavior.LockCenter
     end
 end)
 
--- Co sekundę sprawdzamy, czy mamy włączony aim assist i jeśli tak, nakierowujemy kamerę
-game:GetService("RunService").Heartbeat:Connect(function()
-    if aimAssistEnabled then
-        aimAtEnemies()
-    end
-end)
+-- Pierwsze zaladowanie listy
+UpdatePlayerList()
