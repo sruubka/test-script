@@ -1,11 +1,12 @@
--- GUI
+-- GUI i teleport
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 -- Tworzenie GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Enabled = false  -- domyślnie ukryte
+ScreenGui.Enabled = false
 
 local Frame = Instance.new("Frame", ScreenGui)
 Frame.Size = UDim2.new(0, 300, 0, 400)
@@ -18,7 +19,6 @@ Frame.Draggable = true
 local UIListLayout = Instance.new("UIListLayout", Frame)
 UIListLayout.Padding = UDim.new(0, 5)
 
--- Funkcja do aktualizacji listy graczy
 local function UpdatePlayerList()
     for _, child in pairs(Frame:GetChildren()) do
         if child:IsA("TextButton") then
@@ -44,11 +44,9 @@ local function UpdatePlayerList()
     end
 end
 
--- Aktualizacja przy join/leave gracza
 Players.PlayerAdded:Connect(UpdatePlayerList)
 Players.PlayerRemoving:Connect(UpdatePlayerList)
 
--- Klawisz Insert do pokazania GUI
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.Insert and not gameProcessed then
         ScreenGui.Enabled = not ScreenGui.Enabled
@@ -56,5 +54,91 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Pierwsze zaladowanie listy
 UpdatePlayerList()
+
+-- Fly system
+local flying = false
+local flySpeed = 5  -- prędkość lotu
+local flyVelocity = Vector3.new()
+
+local keys = {W = 0, A = 0, S = 0, D = 0, Space = 0, LeftShift = 0}
+
+-- Funkcja do włączania/wyłączania fly
+local function toggleFly()
+    flying = not flying
+    if not flying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+end
+
+-- Sterowanie fly
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        toggleFly()
+    elseif input.KeyCode == Enum.KeyCode.W then
+        keys.W = 1
+    elseif input.KeyCode == Enum.KeyCode.S then
+        keys.S = 1
+    elseif input.KeyCode == Enum.KeyCode.A then
+        keys.A = 1
+    elseif input.KeyCode == Enum.KeyCode.D then
+        keys.D = 1
+    elseif input.KeyCode == Enum.KeyCode.Space then
+        keys.Space = 1
+    elseif input.KeyCode == Enum.KeyCode.LeftShift then
+        keys.LeftShift = 1
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.W then
+        keys.W = 0
+    elseif input.KeyCode == Enum.KeyCode.S then
+        keys.S = 0
+    elseif input.KeyCode == Enum.KeyCode.A then
+        keys.A = 0
+    elseif input.KeyCode == Enum.KeyCode.D then
+        keys.D = 0
+    elseif input.KeyCode == Enum.KeyCode.Space then
+        keys.Space = 0
+    elseif input.KeyCode == Enum.KeyCode.LeftShift then
+        keys.LeftShift = 0
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not flying then return end
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local rootPart = char.HumanoidRootPart
+
+    local moveDirection = Vector3.new()
+    local camCF = workspace.CurrentCamera.CFrame
+
+    if keys.W == 1 then
+        moveDirection = moveDirection + camCF.LookVector
+    end
+    if keys.S == 1 then
+        moveDirection = moveDirection - camCF.LookVector
+    end
+    if keys.A == 1 then
+        moveDirection = moveDirection - camCF.RightVector
+    end
+    if keys.D == 1 then
+        moveDirection = moveDirection + camCF.RightVector
+    end
+    if keys.Space == 1 then
+        moveDirection = moveDirection + Vector3.new(0, 1, 0)
+    end
+    if keys.LeftShift == 1 then
+        moveDirection = moveDirection - Vector3.new(0, 1, 0)
+    end
+
+    flyVelocity = moveDirection.Unit * flySpeed
+
+    if flyVelocity.Magnitude > 0 then
+        rootPart.Velocity = flyVelocity
+    else
+        rootPart.Velocity = Vector3.new(0, 0, 0)
+    end
+end)
