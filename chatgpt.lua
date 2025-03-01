@@ -1,156 +1,156 @@
--- GUI i teleport
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+local flyEnabled = false
+local noclipEnabled = false
+local guiEnabled = false
+
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Enabled = false
-
 local Frame = Instance.new("Frame", ScreenGui)
+local Title = Instance.new("TextLabel", Frame)
+local PlayerList = Instance.new("ScrollingFrame", Frame)
+
 Frame.Size = UDim2.new(0, 300, 0, 400)
-Frame.Position = UDim2.new(0.5, -150, 0.5, -200)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true
+Frame.Position = UDim2.new(0.5, -150, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Frame.Visible = false
 
-local UIListLayout = Instance.new("UIListLayout", Frame)
-UIListLayout.Padding = UDim.new(0, 5)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Title.Text = "Teleport Menu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 20
 
-local function UpdatePlayerList()
-    for _, child in pairs(Frame:GetChildren()) do
+PlayerList.Size = UDim2.new(1, 0, 1, -50)
+PlayerList.Position = UDim2.new(0, 0, 0, 50)
+PlayerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerList.ScrollBarThickness = 5
+
+local function updatePlayerList()
+    for _, child in ipairs(PlayerList:GetChildren()) do
         if child:IsA("TextButton") then
             child:Destroy()
         end
     end
 
-    for _, player in pairs(Players:GetPlayers()) do
+    for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            local PlayerButton = Instance.new("TextButton", Frame)
-            PlayerButton.Size = UDim2.new(1, 0, 0, 30)
-            PlayerButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-            PlayerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            PlayerButton.Text = player.Name
+            local button = Instance.new("TextButton", PlayerList)
+            button.Size = UDim2.new(1, 0, 0, 30)
+            button.Text = player.Name
+            button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-            PlayerButton.MouseButton1Click:Connect(function()
-                local char = player.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame
+            button.MouseButton1Click:Connect(function()
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character:SetPrimaryPartCFrame(player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0))
                 end
             end)
         end
     end
+    PlayerList.CanvasSize = UDim2.new(0, 0, 0, #Players:GetPlayers() * 30)
 end
 
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
+updatePlayerList()
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
 
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.Insert and not gameProcessed then
-        ScreenGui.Enabled = not ScreenGui.Enabled
-        UIS.MouseBehavior = ScreenGui.Enabled and Enum.MouseBehavior.Default or Enum.MouseBehavior.LockCenter
+-- Fly + Noclip handler
+local flySpeed = 2
+
+local function setNoclip(enabled)
+    noclipEnabled = enabled
+end
+
+local function flyStep()
+    if not flyEnabled then return end
+
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local rootPart = character.HumanoidRootPart
+    local camCFrame = Camera.CFrame
+    local direction = Vector3.zero
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        direction = direction + camCFrame.LookVector
     end
-end)
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        direction = direction - camCFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        direction = direction - camCFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        direction = direction + camCFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        direction = direction + Vector3.new(0, 1, 0)
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        direction = direction - Vector3.new(0, 1, 0)
+    end
 
-UpdatePlayerList()
+    rootPart.Velocity = direction.Unit * flySpeed * 50
+end
 
--- Fly + Noclip system
-local flying = false
-local flySpeed = 50
-local flyVelocity = Vector3.new()
+local function noclipStep()
+    if not noclipEnabled then return end
 
-local keys = {W = 0, A = 0, S = 0, D = 0, Space = 0, LeftShift = 0}
+    local character = LocalPlayer.Character
+    if not character then return end
 
--- Funkcja zmiany noclipa
-local function setNoclip(state)
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") and v.CanCollide ~= nil then
-            v.CanCollide = not state
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
         end
     end
 end
 
--- Funkcja do włączania/wyłączania fly + noclip
-local function toggleFly()
-    flying = not flying
-    setNoclip(flying)
+RunService.RenderStepped:Connect(function()
+    flyStep()
+    noclipStep()
+end)
 
-    if not flying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+local function toggleFly()
+    flyEnabled = not flyEnabled
+    setNoclip(flyEnabled)
+
+    if not flyEnabled then
+        -- Wyłącz ruch
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            character.HumanoidRootPart.Velocity = Vector3.zero
+        end
     end
 end
 
--- Sterowanie fly
-UIS.InputBegan:Connect(function(input)
+local function toggleGui()
+    guiEnabled = not guiEnabled
+    Frame.Visible = guiEnabled
+    UserInputService.MouseIconEnabled = guiEnabled
+
+    if guiEnabled then
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    else
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+    end
+end
+
+-- Bindy
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
     if input.KeyCode == Enum.KeyCode.F then
         toggleFly()
-    elseif input.KeyCode == Enum.KeyCode.W then
-        keys.W = 1
-    elseif input.KeyCode == Enum.KeyCode.S then
-        keys.S = 1
-    elseif input.KeyCode == Enum.KeyCode.A then
-        keys.A = 1
-    elseif input.KeyCode == Enum.KeyCode.D then
-        keys.D = 1
-    elseif input.KeyCode == Enum.KeyCode.Space then
-        keys.Space = 1
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then
-        keys.LeftShift = 1
+    elseif input.KeyCode == Enum.KeyCode.Insert then
+        toggleGui()
     end
 end)
 
-UIS.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.W then
-        keys.W = 0
-    elseif input.KeyCode == Enum.KeyCode.S then
-        keys.S = 0
-    elseif input.KeyCode == Enum.KeyCode.A then
-        keys.A = 0
-    elseif input.KeyCode == Enum.KeyCode.D then
-        keys.D = 0
-    elseif input.KeyCode == Enum.KeyCode.Space then
-        keys.Space = 0
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then
-        keys.LeftShift = 0
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if not flying then return end
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local rootPart = char.HumanoidRootPart
-
-    local moveDirection = Vector3.new()
-    local camCF = workspace.CurrentCamera.CFrame
-
-    if keys.W == 1 then
-        moveDirection = moveDirection + camCF.LookVector
-    end
-    if keys.S == 1 then
-        moveDirection = moveDirection - camCF.LookVector
-    end
-    if keys.A == 1 then
-        moveDirection = moveDirection - camCF.RightVector
-    end
-    if keys.D == 1 then
-        moveDirection = moveDirection + camCF.RightVector
-    end
-    if keys.Space == 1 then
-        moveDirection = moveDirection + Vector3.new(0, 1, 0)
-    end
-    if keys.LeftShift == 1 then
-        moveDirection = moveDirection - Vector3.new(0, 1, 0)
-    end
-
-    flyVelocity = moveDirection.Unit * flySpeed
-
-    if flyVelocity.Magnitude > 0 then
-        rootPart.Velocity = flyVelocity
-    else
-        rootPart.Velocity = Vector3.new(0, 0, 0)
-    end
-end)
+print("Script loaded - F for fly, Insert for GUI")
