@@ -1,57 +1,138 @@
--- SETTINGS
-getgenv().Settings = {
-    Keybinds = {
-        ToggleMenu = Enum.KeyCode.Insert,
-        FlyToggle = Enum.KeyCode.F,
-        AimbotToggle = Enum.KeyCode.Q,
-        BhopToggle = Enum.KeyCode.B
-    },
-    FlySpeed = 80,
-    ESP = {
-        Enabled = true,
-        BoxColor = Color3.fromRGB(255, 0, 0),
-        TeamCheck = true
-    },
-    Aimbot = {
-        Enabled = false,
-        Smoothness = 0.1,
-        TeamCheck = true
-    }
+-- Services
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Config system (zapis i odczyt)
+local ConfigFile = "ModernMenu_Config.json"
+local Config = {
+    FlySpeed = 100,
+    BhopSpeed = 60,
+    ESPEnabled = false,
+    AimbotEnabled = false,
+    AimbotKey = Enum.KeyCode.E,
+    MenuKey = Enum.KeyCode.Insert,
+    FlyKey = Enum.KeyCode.F,
+    BhopKey = Enum.KeyCode.B
 }
 
--- SERVICES
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local function LoadConfig()
+    if isfile(ConfigFile) then
+        Config = HttpService:JSONDecode(readfile(ConfigFile))
+    else
+        writefile(ConfigFile, HttpService:JSONEncode(Config))
+    end
+end
+
+local function SaveConfig()
+    writefile(ConfigFile, HttpService:JSONEncode(Config))
+end
+
+LoadConfig()
 
 -- GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Enabled = false
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 300, 0, 400)
-Frame.Position = UDim2.new(0.5, -150, 0.5, -200)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 350, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
 
-local UIListLayout = Instance.new("UIListLayout", Frame)
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundTransparency = 1
+Title.Text = "Modern Menu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 24
+Title.Font = Enum.Font.GothamBold
+
+local OptionsFrame = Instance.new("ScrollingFrame", MainFrame)
+OptionsFrame.Size = UDim2.new(1, 0, 1, -50)
+OptionsFrame.Position = UDim2.new(0, 0, 0, 50)
+OptionsFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
+OptionsFrame.ScrollBarThickness = 3
+OptionsFrame.BackgroundTransparency = 1
+
+local UIListLayout = Instance.new("UIListLayout", OptionsFrame)
+UIListLayout.Padding = UDim.new(0, 5)
+
+local function AddToggleOption(text, configKey)
+    local button = Instance.new("TextButton", OptionsFrame)
+    button.Size = UDim2.new(1, 0, 0, 40)
+    button.BackgroundColor3 = Config[configKey] and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Text = text
+
+    button.MouseButton1Click:Connect(function()
+        Config[configKey] = not Config[configKey]
+        button.BackgroundColor3 = Config[configKey] and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+        SaveConfig()
+    end)
+end
+
+local function AddSliderOption(text, configKey, min, max)
+    local label = Instance.new("TextLabel", OptionsFrame)
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Text = text .. ": " .. Config[configKey]
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local slider = Instance.new("TextBox", OptionsFrame)
+    slider.Size = UDim2.new(1, 0, 0, 30)
+    slider.Text = tostring(Config[configKey])
+    slider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    slider.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    slider.FocusLost:Connect(function()
+        local value = tonumber(slider.Text)
+        if value then
+            Config[configKey] = math.clamp(value, min, max)
+            label.Text = text .. ": " .. Config[configKey]
+            SaveConfig()
+        end
+    end)
+end
+
+AddToggleOption("ESP", "ESPEnabled")
+AddToggleOption("Aimbot", "AimbotEnabled")
+AddSliderOption("Fly Speed", "FlySpeed", 50, 300)
+AddSliderOption("Bhop Speed", "BhopSpeed", 20, 200)
+
+-- Teleport menu
+local function AddPlayerButton(player)
+    local button = Instance.new("TextButton", OptionsFrame)
+    button.Size = UDim2.new(1, 0, 0, 30)
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Text = "Teleport to: " .. player.Name
+
+    button.MouseButton1Click:Connect(function()
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame
+        end
+    end)
+end
 
 local function UpdatePlayerList()
-    for _, v in pairs(Frame:GetChildren()) do
-        if v:IsA("TextButton") then v:Destroy() end
+    for _, child in pairs(OptionsFrame:GetChildren()) do
+        if child:IsA("TextButton") and child.Text:find("Teleport to") then
+            child:Destroy()
+        end
     end
-
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            local btn = Instance.new("TextButton", Frame)
-            btn.Size = UDim2.new(1, 0, 0, 30)
-            btn.Text = player.Name
-            btn.MouseButton1Click:Connect(function()
-                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame
-                end
-            end)
+            AddPlayerButton(player)
         end
     end
 end
@@ -60,147 +141,46 @@ Players.PlayerAdded:Connect(UpdatePlayerList)
 Players.PlayerRemoving:Connect(UpdatePlayerList)
 UpdatePlayerList()
 
-local function SetMouseState(open)
-    if open then
-        UIS.MouseBehavior = Enum.MouseBehavior.Default
-        UIS.MouseIconEnabled = true
-    else
-        UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
-        UIS.MouseIconEnabled = false
-    end
-end
-
+-- Keybind and Menu Handling
 UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Settings.Keybinds.ToggleMenu then
+    if input.KeyCode == Config.MenuKey then
         ScreenGui.Enabled = not ScreenGui.Enabled
-        SetMouseState(ScreenGui.Enabled)
-    end
-end)
-
--- ESP
-local function CreateESP(player)
-    local box = Drawing.new("Square")
-    box.Visible = false
-    box.Color = Settings.ESP.BoxColor
-    box.Thickness = 2
-    box.Filled = false
-
-    RunService.RenderStepped:Connect(function()
-        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-            box.Visible = false
-            return
-        end
-
-        local root = player.Character.HumanoidRootPart
-        local pos, visible = Camera:WorldToViewportPoint(root.Position)
-
-        if Settings.ESP.Enabled and visible then
-            if Settings.ESP.TeamCheck and player.Team == LocalPlayer.Team then
-                box.Visible = false
-            else
-                box.Size = Vector2.new(1000 / pos.Z, 1500 / pos.Z)
-                box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
-                box.Visible = true
-            end
-        else
-            box.Visible = false
-        end
-    end)
-end
-
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        CreateESP(player)
-    end
-end
-
-Players.PlayerAdded:Connect(CreateESP)
-
--- Aimbot
-local function ClosestPlayer()
-    local target, dist = nil, math.huge
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if Settings.Aimbot.TeamCheck and player.Team == LocalPlayer.Team then
-                continue
-            end
-            local pos, visible = Camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-            local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(UIS:GetMouseLocation().X, UIS:GetMouseLocation().Y)).Magnitude
-            if visible and mag < dist then
-                dist = mag
-                target = player
-            end
-        end
-    end
-    return target
-end
-
-RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.Enabled then
-        local target = ClosestPlayer()
-        if target and target.Character then
-            local root = target.Character.HumanoidRootPart
-            local targetPos = Camera:WorldToViewportPoint(root.Position)
-            local mousePos = UIS:GetMouseLocation()
-            local smooth = Settings.Aimbot.Smoothness
-
-            local moveX = (targetPos.X - mousePos.X) * smooth
-            local moveY = (targetPos.Y - mousePos.Y) * smooth
-            mousemoverel(moveX, moveY)
-        end
-    end
-end)
-
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Settings.Keybinds.AimbotToggle then
-        Settings.Aimbot.Enabled = not Settings.Aimbot.Enabled
-    end
-end)
-
--- Fly + NoClip
-local fly = false
-local flyVelocity = Vector3.zero
-local move = {W = 0, A = 0, S = 0, D = 0, Space = 0, Shift = 0}
-
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Settings.Keybinds.FlyToggle then
-        fly = not fly
-    elseif input.KeyCode == Enum.KeyCode.W then move.W = 1
-    elseif input.KeyCode == Enum.KeyCode.S then move.S = 1
-    elseif input.KeyCode == Enum.KeyCode.A then move.A = 1
-    elseif input.KeyCode == Enum.KeyCode.D then move.D = 1
-    elseif input.KeyCode == Enum.KeyCode.Space then move.Space = 1
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then move.Shift = 1
-    end
-end)
-
-UIS.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.W then move.W = 0
-    elseif input.KeyCode == Enum.KeyCode.S then move.S = 0
-    elseif input.KeyCode == Enum.KeyCode.A then move.A = 0
-    elseif input.KeyCode == Enum.KeyCode.D then move.D = 0
-    elseif input.KeyCode == Enum.KeyCode.Space then move.Space = 0
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then move.Shift = 0
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if fly then
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            local cam = workspace.CurrentCamera.CFrame
-            local moveDir = cam.LookVector * (move.W - move.S) + cam.RightVector * (move.D - move.A)
-            moveDir = moveDir.Unit * Settings.FlySpeed + Vector3.new(0, (move.Space - move.Shift) * Settings.FlySpeed, 0)
-            root.Velocity = moveDir
-            root.CanCollide = false
-        end
+        UIS.MouseIconEnabled = ScreenGui.Enabled
+        UIS.MouseBehavior = ScreenGui.Enabled and Enum.MouseBehavior.Default or Enum.MouseBehavior.LockCenter
+    elseif input.KeyCode == Config.FlyKey then
+        Config.FlyEnabled = not Config.FlyEnabled
+    elseif input.KeyCode == Config.BhopKey then
+        Config.BhopEnabled = not Config.BhopEnabled
     end
 end)
 
 -- Bhop
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Settings.Keybinds.BhopToggle then
-        LocalPlayer.Character.Humanoid.JumpPower = 50
-        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+RunService.RenderStepped:Connect(function()
+    if Config.BhopEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = Config.BhopSpeed
+    elseif not Config.BhopEnabled then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
     end
 end)
+
+-- Fly
+RunService.RenderStepped:Connect(function()
+    if Config.FlyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local HRP = LocalPlayer.Character.HumanoidRootPart
+        local cf = workspace.CurrentCamera.CFrame
+        HRP.Velocity = Vector3.new()
+
+        local move = Vector3.new(
+            (UIS:IsKeyDown(Enum.KeyCode.D) and 1 or 0) - (UIS:IsKeyDown(Enum.KeyCode.A) and 1 or 0),
+            (UIS:IsKeyDown(Enum.KeyCode.Space) and 1 or 0) - (UIS:IsKeyDown(Enum.KeyCode.LeftShift) and 1 or 0),
+            (UIS:IsKeyDown(Enum.KeyCode.S) and 1 or 0) - (UIS:IsKeyDown(Enum.KeyCode.W) and 1 or 0)
+        )
+
+        HRP.CFrame = cf
+        HRP.Velocity = cf:VectorToWorldSpace(move) * Config.FlySpeed
+    end
+end)
+
+-- ESP i Aimbot mogą być dodane dalej
+
+SaveConfig()
