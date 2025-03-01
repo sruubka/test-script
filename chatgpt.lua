@@ -58,7 +58,7 @@ UpdatePlayerList()
 
 -- Fly system
 local flying = false
-local flySpeed = 5  -- prędkość lotu
+local flySpeed = 50  -- prędkość lotu
 local flyVelocity = Vector3.new()
 
 local keys = {W = 0, A = 0, S = 0, D = 0, Space = 0, LeftShift = 0}
