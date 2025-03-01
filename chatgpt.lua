@@ -1,144 +1,67 @@
--- GUI i teleport
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+-- Skrypt w LocalScript
 
--- Tworzenie GUI
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Enabled = false
+-- Zmienna do gracza i GUI
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 300, 0, 400)
-Frame.Position = UDim2.new(0.5, -150, 0.5, -200)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true
+-- Tworzymy GUI, które będzie widoczne po naciśnięciu Insert
+local gui = Instance.new("ScreenGui")
+gui.Name = "AimAssistGui"
+gui.Parent = playerGui
 
-local UIListLayout = Instance.new("UIListLayout", Frame)
-UIListLayout.Padding = UDim.new(0, 5)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.3, 0, 0.3, 0) -- Rozmiar okna
+frame.Position = UDim2.new(0.35, 0, 0.35, 0) -- Pozycja okna na ekranie
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 0.5
+frame.Parent = gui
 
-local function UpdatePlayerList()
-    for _, child in pairs(Frame:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 1, 0)
+label.Text = "Aim Assist: Off"
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.BackgroundTransparency = 1
+label.Parent = frame
 
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local PlayerButton = Instance.new("TextButton", Frame)
-            PlayerButton.Size = UDim2.new(1, 0, 0, 30)
-            PlayerButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-            PlayerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            PlayerButton.Text = player.Name
+-- Stan aktywacji aim assist
+local aimAssistEnabled = false
 
-            PlayerButton.MouseButton1Click:Connect(function()
-                local char = player.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame
-                end
-            end)
+-- Funkcja do aktywowania lub dezaktywowania GUI
+local function toggleAimAssist()
+    aimAssistEnabled = not aimAssistEnabled
+    gui.Enabled = aimAssistEnabled
+    label.Text = aimAssistEnabled and "Aim Assist: On" or "Aim Assist: Off"
+end
+
+-- Funkcja nakierowująca kamerę na głowy przeciwników
+local function aimAtEnemies()
+    -- Szukamy przeciwników w grze (graczy innych niż nasz)
+    for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Head") then
+            local headPosition = otherPlayer.Character.Head.Position
+            -- Sprawdzamy, czy gracz znajduje się w zasięgu
+            local direction = (headPosition - workspace.CurrentCamera.CFrame.Position).unit
+            -- Tworzymy nową CFrame dla kamery, aby patrzyła na głowę przeciwnika
+            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, headPosition)
+            break  -- Tylko pierwszy przeciwnik zostanie wybrany
         end
     end
 end
 
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
+-- Nasłuchujemy na naciśnięcie klawisza Insert
+local userInputService = game:GetService("UserInputService")
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
 
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.Insert and not gameProcessed then
-        ScreenGui.Enabled = not ScreenGui.Enabled
-        UIS.MouseBehavior = ScreenGui.Enabled and Enum.MouseBehavior.Default or Enum.MouseBehavior.LockCenter
+    -- Sprawdzamy, czy naciśnięto klawisz Insert
+    if input.KeyCode == Enum.KeyCode.Insert then
+        toggleAimAssist()
     end
 end)
 
-UpdatePlayerList()
-
--- Fly system
-local flying = false
-local flySpeed = 5  -- prędkość lotu
-local flyVelocity = Vector3.new()
-
-local keys = {W = 0, A = 0, S = 0, D = 0, Space = 0, LeftShift = 0}
-
--- Funkcja do włączania/wyłączania fly
-local function toggleFly()
-    flying = not flying
-    if not flying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
-end
-
--- Sterowanie fly
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.F then
-        toggleFly()
-    elseif input.KeyCode == Enum.KeyCode.W then
-        keys.W = 1
-    elseif input.KeyCode == Enum.KeyCode.S then
-        keys.S = 1
-    elseif input.KeyCode == Enum.KeyCode.A then
-        keys.A = 1
-    elseif input.KeyCode == Enum.KeyCode.D then
-        keys.D = 1
-    elseif input.KeyCode == Enum.KeyCode.Space then
-        keys.Space = 1
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then
-        keys.LeftShift = 1
-    end
-end)
-
-UIS.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.W then
-        keys.W = 0
-    elseif input.KeyCode == Enum.KeyCode.S then
-        keys.S = 0
-    elseif input.KeyCode == Enum.KeyCode.A then
-        keys.A = 0
-    elseif input.KeyCode == Enum.KeyCode.D then
-        keys.D = 0
-    elseif input.KeyCode == Enum.KeyCode.Space then
-        keys.Space = 0
-    elseif input.KeyCode == Enum.KeyCode.LeftShift then
-        keys.LeftShift = 0
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if not flying then return end
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local rootPart = char.HumanoidRootPart
-
-    local moveDirection = Vector3.new()
-    local camCF = workspace.CurrentCamera.CFrame
-
-    if keys.W == 1 then
-        moveDirection = moveDirection + camCF.LookVector
-    end
-    if keys.S == 1 then
-        moveDirection = moveDirection - camCF.LookVector
-    end
-    if keys.A == 1 then
-        moveDirection = moveDirection - camCF.RightVector
-    end
-    if keys.D == 1 then
-        moveDirection = moveDirection + camCF.RightVector
-    end
-    if keys.Space == 1 then
-        moveDirection = moveDirection + Vector3.new(0, 1, 0)
-    end
-    if keys.LeftShift == 1 then
-        moveDirection = moveDirection - Vector3.new(0, 1, 0)
-    end
-
-    flyVelocity = moveDirection.Unit * flySpeed
-
-    if flyVelocity.Magnitude > 0 then
-        rootPart.Velocity = flyVelocity
-    else
-        rootPart.Velocity = Vector3.new(0, 0, 0)
+-- Co sekundę sprawdzamy, czy mamy włączony aim assist i jeśli tak, nakierowujemy kamerę
+game:GetService("RunService").Heartbeat:Connect(function()
+    if aimAssistEnabled then
+        aimAtEnemies()
     end
 end)
