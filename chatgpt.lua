@@ -4,6 +4,7 @@ local LocalPlayer = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
+-- Tworzenie GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Enabled = false
 
@@ -55,29 +56,16 @@ end)
 
 UpdatePlayerList()
 
--- Fly + Noclip system
+-- Fly system
 local flying = false
-local flySpeed = 85
+local flySpeed = 85  -- prędkość lotu
 local flyVelocity = Vector3.new()
 
 local keys = {W = 0, A = 0, S = 0, D = 0, Space = 0, LeftShift = 0}
 
--- Funkcja zmiany noclipa
-local function setNoclip(state)
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") and v.CanCollide ~= nil then
-            v.CanCollide = not state
-        end
-    end
-end
-
--- Funkcja do włączania/wyłączania fly + noclip
+-- Funkcja do włączania/wyłączania fly
 local function toggleFly()
     flying = not flying
-    setNoclip(flying)
-
     if not flying and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
